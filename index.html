@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Question Search</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            #0a0a0f;
+      --surface:       #13131a;
+      --surface-2:     #1c1c26;
+      --surface-3:     #252535;
+      --glass-border:  rgba(255,255,255,0.08);
+      --text-primary:  #f0f0f8;
+      --text-secondary:#b0b0c8;
+      --text-muted:    #606080;
+      --cyan:          #00e5ff;
+      --cyan-dim:      rgba(0,229,255,0.10);
+      --green:         #00e676;
+      --amber:         #ffc107;
+      --red:           #ff5252;
+      --r-sm:          8px;
+      --r-md:          12px;
+      --r-lg:          20px;
+      --font-display:  'Syne', sans-serif;
+      --font-body:     'Inter', sans-serif;
+      --font-mono:     'Space Mono', monospace;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── HEADER ─────────────────────────────────────── */
+    .app-header {
+      width: 100%;
+      max-width: 680px;
+      padding: 28px 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .app-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #7c3aed, #00e5ff);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      box-shadow: 0 0 20px rgba(124,58,237,0.4);
+    }
+    .app-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 30%, var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .app-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+    .history-header-btn {
+      margin-left: auto;
+      background: rgba(124,58,237,0.12);
+      border: 1px solid rgba(124,58,237,0.35);
+      border-radius: var(--r-sm);
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #a78bfa;
+      cursor: pointer;
+      font-family: var(--font-display);
+      transition: opacity 0.1s, transform 0.1s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .history-header-btn:hover { background: rgba(124,58,237,0.2); }
+    .history-header-btn:active { transform: scale(0.95); }
+
+    /* ── MAIN CARD ──────────────────────────────────── */
+    .main-card {
+      width: 100%;
+      max-width: 680px;
+      margin: 24px 20px 0;
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .card-inner {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .input-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+    .qa-textarea {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1.5px solid var(--glass-border);
+      border-radius: var(--r-md);
+      padding: 14px 16px;
+      font-size: 15px;
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      resize: none;
+      outline: none;
+      min-height: 120px;
+      transition: border-color 0.2s;
+      line-height: 1.6;
+    }
+    .qa-textarea:focus { border-color: var(--cyan); }
+    .qa-textarea::placeholder { color: var(--text-muted); }
+
+    .search-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 16px 22px;
+      background: linear-gradient(135deg, var(--amber), #4ade80, var(--cyan));
+      background-size: 200% 200%;
+      border: none;
+      border-radius: var(--r-md);
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: #0a0a0f;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      animation: gradientShift 4s ease infinite;
+    }
+    @keyframes gradientShift {
+      0%,100% { background-position: 0% 50%; }
+      50%      { background-position: 100% 50%; }
+    }
+    .search-btn:hover { opacity: 0.92; }
+    .search-btn:active { transform: scale(0.97); opacity: 0.85; }
+    .search-btn:disabled { opacity: 0.45; pointer-events: none; }
+    .search-btn-icon { font-size: 18px; }
+
+    .hint-text {
+      text-align: center;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      padding-bottom: 4px;
+    }
+    .hint-text span { color: var(--cyan); }
+
+    /* ── RESULT CARD ────────────────────────────────── */
+    .result-card {
+      width: 100%;
+      max-width: 680px;
+      margin: 16px 20px 0;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .result-card.visible { display: flex; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-section {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .result-section-header {
+      padding: 10px 16px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--glass-border);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+    .result-section-body { padding: 14px 16px; }
+
+    .question-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .answer-text {
+      font-size: 17px;
+      font-weight: 700;
+      font-family: var(--font-display);
+      color: var(--green);
+      line-height: 1.4;
+    }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .pill-cyan {
+      background: rgba(0,229,255,0.10);
+      border: 1px solid rgba(0,229,255,0.30);
+      color: var(--cyan);
+    }
+    .pill-purple {
+      background: rgba(124,58,237,0.12);
+      border: 1px solid rgba(124,58,237,0.30);
+      color: #a78bfa;
+    }
+
+    .explain-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+      user-select: none;
+    }
+    .explain-toggle:hover { background: rgba(255,255,255,0.03); }
+    .explain-toggle-arrow {
+      font-size: 16px;
+      color: var(--cyan);
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    .explain-toggle.open .explain-toggle-arrow { transform: rotate(90deg); }
+
+    .explain-body {
+      display: none;
+      padding: 0 16px 16px;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 1px solid var(--glass-border);
+    }
+    .explain-body.open { display: flex; padding-top: 14px; }
+
+    .explanation-text {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .key-points {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .key-points li {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      padding-left: 20px;
+      position: relative;
+    }
+    .key-points li::before {
+      content: '▸';
+      position: absolute;
+      left: 4px;
+      color: var(--cyan);
+      font-size: 11px;
+      top: 2px;
+    }
+
+    /* ── HISTORY OVERLAY ────────────────────────────── */
+    .history-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 800;
+      display: flex;
+      flex-direction: column;
+      animation: fadeIn 0.18s ease;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    .history-overlay.open { transform: translateX(0); }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .history-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--glass-border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .back-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r-sm);
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+    .back-btn:hover { background: var(--surface-3); }
+    .history-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .history-clear-btn {
+      margin-left: auto;
+      background: rgba(255,82,82,0.10);
+      border: 1px solid rgba(255,82,82,0.25);
+      border-radius: var(--r-sm);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--red);
+      cursor: pointer;
+      font-family: var(--font-display);
+      transition: opacity 0.1s;
+      display: none;
+    }
+    .history-clear-btn.visible { display: block; }
+    .history-clear-btn:hover { opacity: 0.8; }
+
+    .history-search-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--glass-border);
+      flex-shrink: 0;
+    }
+    .history-search-icon { color: var(--text-muted); flex-shrink: 0; }
+    .history-search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 14px;
+      color: var(--text-primary);
+      font-family: var(--font-body);
+    }
+    .history-search-input::placeholder { color: var(--text-muted); }
+    .history-search-clear {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 6px;
+      display: none;
+    }
+    .history-search-clear.visible { display: block; }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-bottom: 32px;
+    }
+    .history-empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .history-item {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r-md);
+      padding: 14px 16px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.2s, background 0.2s;
+      flex-shrink: 0;
+      animation: slideUp 0.2s ease both;
+    }
+    .history-item.revealed {
+      border-color: rgba(0,230,118,0.35);
+      background: linear-gradient(135deg, var(--surface) 0%, rgba(0,230,118,0.04) 100%);
+    }
+    .history-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .history-subject {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .history-delete {
+      background: transparent;
+      border: none;
+      font-size: 13px;
+      cursor: pointer;
+      opacity: 0.45;
+      transition: opacity 0.15s, transform 0.1s;
+      padding: 2px 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .history-delete:hover { opacity: 1; }
+    .history-delete:active { transform: scale(0.88); }
+    .history-question {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: var(--font-display);
+      color: var(--text-primary);
+      line-height: 1.55;
+      margin-bottom: 10px;
+    }
+    .history-q-num {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .history-answer {
+      font-size: 15px;
+      font-weight: 700;
+      font-family: var(--font-display);
+      color: transparent;
+      background: rgba(255,255,255,0.05);
+      border-radius: var(--r-sm);
+      padding: 8px 12px;
+      line-height: 1.5;
+      user-select: none;
+      transition: color 0.25s, background 0.25s;
+      margin-bottom: 6px;
+    }
+    .history-item.revealed .history-answer {
+      color: var(--green);
+      background: rgba(0,230,118,0.08);
+    }
+    .history-ts {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+
+    /* ── ERROR TOAST ────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface-3);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r-md);
+      padding: 12px 20px;
+      font-size: 13px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 9999;
+      pointer-events: none;
+      max-width: 90vw;
+      white-space: normal;
+      text-align: center;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── FOOTER ─────────────────────────────────────── */
+    .app-footer {
+      width: 100%;
+      max-width: 680px;
+      padding: 20px;
+      margin-top: auto;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .app-footer span { color: var(--cyan); }
+
+    /* ── LOADING SPINNER ────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0,0,0,0.3);
+      border-top-color: #0a0a0f;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── BACKGROUND GLOW ─────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -30%;
+      left: -20%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(ellipse, rgba(124,58,237,0.07) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -20%;
+      right: -20%;
+      width: 50%;
+      height: 50%;
+      background: radial-gradient(ellipse, rgba(0,229,255,0.05) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .app-header, .main-card, .result-card, .app-footer { position: relative; z-index: 1; }
+
+    @media (max-width: 480px) {
+      .app-header { padding: 20px 16px 0; }
+      .main-card  { margin: 16px 16px 0; }
+      .result-card { margin: 12px 16px 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="app-logo">🤖</div>
+    <div>
+      <div class="app-title">AI Question Search</div>
+      <div class="app-subtitle">groq/compound-mini · web search</div>
+    </div>
+    <button class="history-header-btn" id="btn-history">🕐 History</button>
+  </header>
+
+  <!-- MAIN SEARCH CARD -->
+  <div class="main-card">
+    <div class="card-inner">
+      <div class="input-label">Enter your question</div>
+      <textarea
+        class="qa-textarea"
+        id="qa-input"
+        placeholder="Paste any MCQ or question here…&#10;e.g. Kisan Credit Card maximum short term loan limit is?"
+        rows="4"
+      ></textarea>
+      <button class="search-btn" id="btn-search">
+        <span class="search-btn-icon" id="btn-icon">🔍</span>
+        <span id="btn-label">Search Answer</span>
+      </button>
+      <div class="hint-text">Powered by <span>Groq compound-mini</span> with real-time web search</div>
+    </div>
+  </div>
+
+  <!-- RESULT CARD -->
+  <div class="result-card" id="result-card">
+
+    <div class="result-section">
+      <div class="result-section-header">Question</div>
+      <div class="result-section-body">
+        <div class="question-text" id="res-question"></div>
+      </div>
+    </div>
+
+    <div class="result-section" style="border-color: rgba(0,230,118,0.25);">
+      <div class="result-section-header" style="color: var(--green);">✅ Correct Answer</div>
+      <div class="result-section-body">
+        <div class="answer-text" id="res-answer"></div>
+        <div class="meta-row">
+          <span class="pill pill-cyan" id="res-subject"></span>
+          <span class="pill pill-purple">🌐 Web Search</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-section">
+      <div class="explain-toggle" id="explain-toggle">
+        <span>💡 Why is this correct?</span>
+        <span class="explain-toggle-arrow">›</span>
+      </div>
+      <div class="explain-body" id="explain-body">
+        <div class="explanation-text" id="res-explanation"></div>
+        <ul class="key-points" id="res-keypoints"></ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="app-footer">
+    Built with <span>Groq API</span> · Indian Agriculture Exams · ICAR · NABARD · IBPS AFO
+  </footer>
+
+  <!-- HISTORY OVERLAY -->
+  <div class="history-overlay" id="history-overlay">
+    <div class="history-header">
+      <button class="back-btn" id="btn-history-back">←</button>
+      <span class="history-title">🕐 Search History</span>
+      <button class="history-clear-btn" id="btn-history-clear">🗑 Clear All</button>
+    </div>
+    <div class="history-search-wrap">
+      <svg class="history-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input class="history-search-input" id="history-search" placeholder="Search history…" />
+      <button class="history-search-clear" id="btn-history-search-clear">✕</button>
+    </div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── CONFIG ────────────────────────────────────────
+    // API key injected at deploy time by GitHub Actions (__GROQ_API_KEY__)
+    const GROQ_API_KEY = '__GROQ_API_KEY__';
+    const LS_KEY = 'aqs_history_v1';
+
+    // ── SYSTEM PROMPT ─────────────────────────────────
+    const SYSTEM_PROMPT =
+      'You are an expert exam coach for Indian Agriculture competitive exams. ' +
+      'Use web search to verify current official figures (loan limits, rates, policy). ' +
+      'For MCQs, pick the factually correct option. Be concise. ' +
+      'Return ONLY raw JSON: {"answer":"correct answer","subject":"Agriculture subject","explanation":"2-3 sentences","key_points":["fact1","fact2","fact3"]}';
+
+    // ── UTILS ─────────────────────────────────────────
+    function esc(str) {
+      return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showToast(msg, duration = 3000) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), duration);
+    }
+
+    function fmtTs(ts) {
+      const diff = Date.now() - ts;
+      const m = Math.floor(diff / 60000);
+      if (m < 1)  return 'Just now';
+      if (m < 60) return m + 'm ago';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + 'h ago';
+      return Math.floor(h / 24) + 'd ago';
+    }
+
+    // ── STORAGE ───────────────────────────────────────
+    function getHistory() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+      catch { return []; }
+    }
+    function saveHistory(arr) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(arr)); } catch {}
+    }
+    function addToHistory(question, result) {
+      const history = getHistory();
+      const normQ = question.trim().toLowerCase();
+      const filtered = history.filter(h => h.question.trim().toLowerCase() !== normQ);
+      filtered.unshift({ question, answer: result.answer, subject: result.subject, explanation: result.explanation, key_points: result.key_points, ts: Date.now() });
+      saveHistory(filtered.slice(0, 100));
+    }
+
+    // ── GROQ API ──────────────────────────────────────
+    function extractText(data) {
+      const msg = data?.choices?.[0]?.message;
+      if (!msg) return null;
+      if (Array.isArray(msg.content)) {
+        return msg.content.filter(b => b.type === 'text').map(b => b.text || '').join('\n').trim() || null;
+      }
+      return (typeof msg.content === 'string' && msg.content.trim()) ? msg.content.trim() : null;
+    }
+
+    function parseContent(content) {
+      try {
+        const cleaned = content.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+        const obj = JSON.parse(cleaned);
+        return {
+          answer:      obj.answer      || 'Unknown',
+          subject:     obj.subject     || 'General',
+          explanation: obj.explanation || '',
+          key_points:  Array.isArray(obj.key_points) ? obj.key_points : [],
+        };
+      } catch {
+        return { answer: content.slice(0,150), subject: 'General', explanation: content.slice(0,400), key_points: [] };
+      }
+    }
+
+    async function groqSearch(question) {
+      const apiKey = GROQ_API_KEY;
+      if (!apiKey || apiKey === '__GROQ_API_KEY__') throw new Error('GROQ_API_KEY not configured');
+
+      const userMsg = question.length > 400 ? question.slice(0, 400) + '…' : question;
+
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+          model: 'groq/compound-mini',
+          max_tokens: 300,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user',   content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const e = await res.text().catch(() => '');
+        throw new Error('Groq API ' + res.status + ': ' + e.slice(0, 200));
+      }
+
+      const data = await res.json();
+      const content = extractText(data);
+      if (!content) throw new Error('Empty response from Groq');
+      return parseContent(content);
+    }
+
+    // ── RENDER RESULT ─────────────────────────────────
+    function showResult(question, result) {
+      document.getElementById('res-question').textContent    = question;
+      document.getElementById('res-answer').textContent      = result.answer;
+      document.getElementById('res-subject').textContent     = '📚 ' + result.subject;
+      document.getElementById('res-explanation').textContent = result.explanation;
+
+      const kpEl = document.getElementById('res-keypoints');
+      kpEl.innerHTML = result.key_points.map(p => `<li>${esc(p)}</li>`).join('');
+
+      // Reset explain toggle
+      document.getElementById('explain-toggle').classList.remove('open');
+      document.getElementById('explain-body').classList.remove('open');
+
+      document.getElementById('result-card').classList.add('visible');
+      document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── HISTORY RENDER ────────────────────────────────
+    function renderHistory(query = '') {
+      const listEl = document.getElementById('history-list');
+      let history = getHistory();
+      if (query) {
+        const q = query.toLowerCase();
+        history = history.filter(h =>
+          h.question.toLowerCase().includes(q) || h.answer.toLowerCase().includes(q)
+        );
+      }
+      const clearBtn = document.getElementById('btn-history-clear');
+      clearBtn.classList.toggle('visible', getHistory().length > 0 && !query);
+
+      if (!history.length) {
+        listEl.innerHTML = `<div class="history-empty">${query ? '🔍 No matching results' : '📭 No history yet.<br>Search a question to get started.'}</div>`;
+        return;
+      }
+      listEl.innerHTML = history.map((h, i) => `
+        <div class="history-item" id="hcard-${i}" onclick="toggleCard(${i})">
+          <div class="history-item-top">
+            <div class="history-subject">${esc(h.subject || 'Agriculture')}</div>
+            <button class="history-delete" aria-label="Delete" onclick="event.stopPropagation();deleteItem(${h.ts})">❌</button>
+          </div>
+          <div class="history-question">
+            <span class="history-q-num">Q${i+1}</span>
+            <span>${esc(h.question)}</span>
+          </div>
+          <div class="history-answer" id="hans-${i}">${esc(h.answer)}</div>
+          <div class="history-ts">${fmtTs(h.ts)}</div>
+        </div>
+      `).join('');
+    }
+
+    function toggleCard(i) {
+      document.getElementById('hcard-' + i)?.classList.toggle('revealed');
+    }
+
+    function deleteItem(ts) {
+      const updated = getHistory().filter(h => h.ts !== ts);
+      saveHistory(updated);
+      const q = document.getElementById('history-search')?.value.trim() || '';
+      renderHistory(q);
+    }
+
+    // ── EVENTS ────────────────────────────────────────
+    document.getElementById('btn-search').addEventListener('click', async () => {
+      const input = document.getElementById('qa-input');
+      const question = (input?.value || '').trim();
+      if (!question) { showToast('⚠️ Please enter a question first'); return; }
+
+      const btn   = document.getElementById('btn-search');
+      const icon  = document.getElementById('btn-icon');
+      const label = document.getElementById('btn-label');
+
+      btn.disabled = true;
+      icon.innerHTML = '<span class="spinner"></span>';
+      label.textContent = 'Searching…';
+
+      try {
+        const result = await groqSearch(question);
+        addToHistory(question, result);
+        showResult(question, result);
+      } catch (err) {
+        showToast('❌ Search failed: ' + err.message, 4000);
+      } finally {
+        btn.disabled = false;
+        icon.textContent = '🔍';
+        label.textContent = 'Search Answer';
+      }
+    });
+
+    // Allow Ctrl+Enter / Cmd+Enter to search
+    document.getElementById('qa-input').addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') document.getElementById('btn-search').click();
+    });
+
+    document.getElementById('explain-toggle').addEventListener('click', () => {
+      document.getElementById('explain-toggle').classList.toggle('open');
+      document.getElementById('explain-body').classList.toggle('open');
+    });
+
+    document.getElementById('btn-history').addEventListener('click', () => {
+      renderHistory();
+      document.getElementById('history-overlay').classList.add('open');
+    });
+
+    document.getElementById('btn-history-back').addEventListener('click', () => {
+      document.getElementById('history-overlay').classList.remove('open');
+    });
+
+    document.getElementById('btn-history-clear').addEventListener('click', () => {
+      if (confirm('Clear all search history?')) {
+        saveHistory([]);
+        renderHistory();
+      }
+    });
+
+    const histSearch = document.getElementById('history-search');
+    const histClear  = document.getElementById('btn-history-search-clear');
+    histSearch.addEventListener('input', () => {
+      const q = histSearch.value.trim();
+      histClear.classList.toggle('visible', !!q);
+      renderHistory(q);
+    });
+    histClear.addEventListener('click', () => {
+      histSearch.value = '';
+      histClear.classList.remove('visible');
+      renderHistory('');
+      histSearch.focus();
+    });
+  </script>
+</body>
+</html>
