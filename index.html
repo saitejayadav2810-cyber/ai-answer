@@ -553,6 +553,68 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+
+    /* ── KEY SETUP CARD ─────────────────────────────── */
+    .key-setup-card {
+      width: 100%;
+      max-width: 680px;
+      margin: 16px 20px 0;
+      background: var(--surface);
+      border: 1.5px solid rgba(255,193,7,0.3);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .key-setup-inner {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+    }
+    .key-setup-icon { font-size: 32px; }
+    .key-setup-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--amber);
+    }
+    .key-setup-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 340px;
+    }
+    .key-setup-input {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1.5px solid var(--glass-border);
+      border-radius: var(--r-md);
+      padding: 12px 14px;
+      font-size: 14px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .key-setup-input:focus { border-color: var(--amber); }
+    .key-setup-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--amber), #ff9800);
+      border: none;
+      border-radius: var(--r-md);
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      color: #0a0a0f;
+      cursor: pointer;
+      transition: opacity 0.1s, transform 0.1s;
+    }
+    .key-setup-btn:hover { opacity: 0.9; }
+    .key-setup-btn:active { transform: scale(0.97); }
+
     /* ── BACKGROUND GLOW ─────────────────────────────── */
     body::before {
       content: '';
@@ -612,6 +674,18 @@
         <span id="btn-label">Search Answer</span>
       </button>
       <div class="hint-text">Powered by <span>Groq compound-mini</span> with real-time web search</div>
+    </div>
+  </div>
+
+
+  <!-- API KEY SETUP (shown only if key not configured) -->
+  <div class="key-setup-card" id="key-setup-card" style="display:none;">
+    <div class="key-setup-inner">
+      <div class="key-setup-icon">🔑</div>
+      <div class="key-setup-title">Enter your Groq API Key</div>
+      <div class="key-setup-desc">Get a free key from <a href="https://console.groq.com/keys" target="_blank" style="color:var(--cyan)">console.groq.com</a>. Saved locally on your device only.</div>
+      <input class="key-setup-input" id="key-input" type="password" placeholder="gsk_..." autocomplete="off" />
+      <button class="key-setup-btn" id="btn-save-key">Save & Continue</button>
     </div>
   </div>
 
@@ -676,8 +750,12 @@
 
   <script>
     // ── CONFIG ────────────────────────────────────────
-    // API key injected at deploy time by GitHub Actions (__GROQ_API_KEY__)
-    const GROQ_API_KEY = '__GROQ_API_KEY__';
+    // API key: injected by GitHub Actions OR saved by user in localStorage
+    const GROQ_API_KEY = (function() {
+      const injected = '__GROQ_API_KEY__';
+      if (injected && injected !== '__GROQ_API_KEY__') return injected;
+      return localStorage.getItem('aqs_groq_key') || '';
+    })();
     const LS_KEY = 'aqs_history_v1';
 
     // ── SYSTEM PROMPT ─────────────────────────────────
@@ -754,7 +832,7 @@
 
     async function groqSearch(question) {
       const apiKey = GROQ_API_KEY;
-      if (!apiKey || apiKey === '__GROQ_API_KEY__') throw new Error('GROQ_API_KEY not configured');
+      if (!apiKey) { showKeySetup(); throw new Error('API key not set'); }
 
       const userMsg = question.length > 400 ? question.slice(0, 400) + '…' : question;
 
@@ -910,6 +988,31 @@
       renderHistory('');
       histSearch.focus();
     });
+
+    // ── KEY SETUP ─────────────────────────────────────
+    function showKeySetup() {
+      document.getElementById('key-setup-card').style.display = 'block';
+      document.getElementById('key-input').focus();
+    }
+
+    // Hide setup card if key already present on load
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!GROQ_API_KEY) showKeySetup();
+    });
+
+    document.getElementById('btn-save-key').addEventListener('click', () => {
+      const key = document.getElementById('key-input').value.trim();
+      if (!key || !key.startsWith('gsk_')) {
+        showToast('⚠️ Invalid key — should start with gsk_');
+        return;
+      }
+      localStorage.setItem('aqs_groq_key', key);
+      document.getElementById('key-setup-card').style.display = 'none';
+      showToast('✅ API key saved!');
+      // Reload so GROQ_API_KEY picks up the new value
+      location.reload();
+    });
+
   </script>
 </body>
 </html>
